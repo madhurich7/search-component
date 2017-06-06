@@ -1,0 +1,7 @@
+<h1>
+  {{title}}
+</h1>
+<input type="text" (input)="terms$.next($event.target.value)"/>
+<ul>
+  <li *ngFor="let term of terms"><a href="{{term}}">{{term}}</a></li>
+</ul>

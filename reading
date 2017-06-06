@@ -1,0 +1,92 @@
+You got an error saying "No provider for Jsonp!"
+
+to resolve this, in app.module.ts
+import {JsonpModule} from '@angular/Http';
+
+and in imports array
+imports: ['JsonpModule']
+
+REFER https://stackoverflow.com/questions/39473917/angular-2-no-provider-for-jsonp
+---------
+We have made a search component, that searches wiki, with the matching words found
+here while we are typing, it invokes the 'search' method in app.component.ts
+which in turn invokes the service ot get the results.
+<input (input)="search($event.target.value)"/>
+
+(input)="search($event.target.value)" --> search(term) --> this.wiki.search(term)
+
+
+But to avoid any errors in between (when we type and when results are obtained)
+we are emitting the input entered as an observable stream through 'subject'
+subject is nothing but to create an observable stream.
+
+
+//to use it first import it
+import {Subject} from 'rxjs/Subject';
+
+//create an observable stream
+terms$ = new Subject();
+
+//on initialisation of teh component
+ngOnInit(){
+    this.terms$.subscribe((term) => this.search(term));
+}
+
+Now what this does is, when an input is typed in the input box
+<input (input)="terms$.next($event.target.value)"/>
+this emits the value typed in teh input box as an observable stream
+now whenever this is emitted the subscribe method of terms$ 
+will be executed which in turn executes the 'search' which executes the service
+
+terms$.next($event.target.value) --> this.terms$.subscribe --> this.search(term) --> this.wiki.search(term)
+-------------
+when ever we are tyoing something, for each and every letter typed the search is made
+and calls the api.
+
+to avoid this and to call the resource only after certain characters are typed and being
+idle for a time of 350ms, then only request must be made and all other requests fro other letters
+must be skipped. For this kind of exact behaviour we have 'debounceTime(time_in_ms)'
+
+--> look into network tab to know the number of requests made
+--> for you to understand clearly look into the console, while typing with and without
+debounceTime
+--------------------
+when we type in a string now it only makes one request, BUT if the request is made for example
+'hello' string now when we chnage the 'hello' to 'hellop' (just an example) it makes a new request
+now when we change it back to 'hello' again it makes a new request, even though we made the request
+fro the exact same string ('hello') earlier. Now to save the previous request which is same
+and to avoid requesting again for the same srting, we have something called as 'distinctUntilChanged()'
+
+to use thi import it at the top
+import 'rxjs/add/operator/distinctUntilChanged';
+---------
+here we have two subscribe methods, one in terms$ and other in search method to get the results.
+We can actually put these at one place
+
+this.terms$
+.distinctUnitlChanged()
+.subscribe((term) => this.search(term))
+--
+this.terms$
+.distinctUnitlChanged()
+.map(term => this.search(term))
+.subscribe((termObs) => {//one subscribe here. termObs is an array of observables
+//if we just have an array which is an observable, we use just one subscribe method, but here
+//termObs is an observable of observables (Ex: [[a, b, c], [a, b, c].....] array of observables).
+//general observables are like [a, b, c, d.....] we subscribe to these using just one subscribe.
+    termObs.subscribe(res => this.terms = res);//one more here
+});
+
+Sp to convert an array of observables to single observable stream we have to use two subscribe
+methods, or we can use 'flatMap' that does this explicitly. So we can use just one subscribe.
+
+To use 'flatMap' fisrt import it
+import 'rxjs/add/operator/mergeMap';
+mergeMap is an alias of 'flatMap'
+
+this.terms$
+.distinctUnitlChanged()
+.flatMap(term => this.search(term))
+.subscribe(res => this.terms = res);
+
+
